@@ -4,6 +4,13 @@ const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
 
+const State = struct {
+    is_wireframe: bool,
+};
+var state: State = .{
+    .is_wireframe = false,
+};
+
 pub fn main() !void {
     try glfw.init();
     defer glfw.terminate();
@@ -60,15 +67,41 @@ pub fn main() !void {
         shader_vertex,
         shader_fragment,
     );
+    defer gl.deleteProgram(shader_program);
 
-    const vertices = [_]gl.Float{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
+    // zig fmt: off
+    const vertices = [_]gl.Float{ 
+         // tr, br, bl, tl
+         0.5,  0.5,  0.0,
+         0.5, -0.5,  0.0,
+        -0.5, -0.5,  0.0,
+        -0.5,  0.5,  0.0,
+    };
+    const indices = [_]gl.Uint{
+        0, 1, 3,
+        1, 2, 3,
+    };
+    // zig fmt: on
 
     var vao: gl.Uint = undefined;
     gl.genVertexArrays(1, &vao);
+    defer gl.deleteVertexArrays(1, &vao);
     gl.bindVertexArray(vao);
+
+    var ebo: gl.Uint = undefined;
+    gl.genBuffers(1, &ebo);
+    defer gl.deleteBuffers(1, &ebo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+    gl.bufferData(
+        gl.ELEMENT_ARRAY_BUFFER,
+        indices.len * @sizeOf(gl.Uint),
+        &indices,
+        gl.STATIC_DRAW,
+    );
 
     var vbo: gl.Uint = undefined;
     gl.genBuffers(1, &vbo);
+    defer gl.deleteBuffers(1, &vbo);
     gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
     gl.bufferData(
         gl.ARRAY_BUFFER,
@@ -95,13 +128,23 @@ pub fn main() !void {
         gl.clearColor(0.2, 0.3, 0.3, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
+        if (state.is_wireframe) {
+            gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+        } else {
+            gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
+        }
+
         gl.useProgram(shader_program);
         gl.bindVertexArray(vao);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, @ptrFromInt(0));
 
         window.swapBuffers();
     }
 }
+
+//--------------------------
+//--------------------------
+//--------------------------
 const initial_screen_size = .{
     .width = 800,
     .height = 600,
@@ -198,5 +241,10 @@ fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callco
 fn processInput(window: *glfw.Window) callconv(.c) void {
     if (window.getKey(.escape) == .press) {
         window.setShouldClose(true);
+    }
+
+    if (window.getKey(.w) == .press) {
+        // TODO: create a key DOWN event
+        state.is_wireframe = !state.is_wireframe;
     }
 }
