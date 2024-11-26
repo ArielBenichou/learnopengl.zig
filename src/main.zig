@@ -58,55 +58,83 @@ pub fn main() !void {
         gl.VERTEX_SHADER,
         "VERTEX",
     );
-    const shader_fragment = try createShader(
-        shader_fragment_source,
+    const shader_fragment_orange = try createShader(
+        shader_fragment_orange_source,
         gl.FRAGMENT_SHADER,
         "FRAGMENT",
     );
-    const shader_program = try createProgram(
+
+    const triangle_orange_program = try createProgram(
         shader_vertex,
-        shader_fragment,
+        shader_fragment_orange,
     );
-    defer gl.deleteProgram(shader_program);
+    defer gl.deleteProgram(triangle_orange_program);
+
+    const shader_fragment_yellow = try createShader(
+        shader_fragment_yellow_source,
+        gl.FRAGMENT_SHADER,
+        "FRAGMENT",
+    );
+    const triangle_yellow_program = try createProgram(
+        shader_vertex,
+        shader_fragment_yellow,
+    );
+    defer gl.deleteProgram(triangle_yellow_program);
 
     // zig fmt: off
-    const vertices = [_]gl.Float{ 
-         // tr, br, bl, tl
-         0.5,  0.5,  0.0,
-         0.5, -0.5,  0.0,
-        -0.5, -0.5,  0.0,
-        -0.5,  0.5,  0.0,
+    // TWO TRIANGLES
+    const triangle_orange = [_]gl.Float{ 
+        -0.4, 0.0, 0.0,
+        -0.25, 0.3, 0.0,
+        -0.1, 0.0, 0.0,
     };
-    const indices = [_]gl.Uint{
-        0, 1, 3,
-        1, 2, 3,
+
+    const triangle_yellow = [_]gl.Float{ 
+        0.4, 0.0, 0.0,
+        0.25, 0.3, 0.0,
+        0.1, 0.0, 0.0,
     };
     // zig fmt: on
 
-    var vao: gl.Uint = undefined;
-    gl.genVertexArrays(1, &vao);
-    defer gl.deleteVertexArrays(1, &vao);
-    gl.bindVertexArray(vao);
+    var triangle_orange_vao: gl.Uint = undefined;
+    gl.genVertexArrays(1, &triangle_orange_vao);
+    defer gl.deleteVertexArrays(1, &triangle_orange_vao);
+    gl.bindVertexArray(triangle_orange_vao);
 
-    var ebo: gl.Uint = undefined;
-    gl.genBuffers(1, &ebo);
-    defer gl.deleteBuffers(1, &ebo);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+    var triangle_orange_vbo: gl.Uint = undefined;
+    gl.genBuffers(1, &triangle_orange_vbo);
+    defer gl.deleteBuffers(1, &triangle_orange_vbo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangle_orange_vbo);
     gl.bufferData(
-        gl.ELEMENT_ARRAY_BUFFER,
-        indices.len * @sizeOf(gl.Uint),
-        &indices,
+        gl.ARRAY_BUFFER,
+        @sizeOf(@TypeOf(triangle_orange)),
+        &triangle_orange,
         gl.STATIC_DRAW,
     );
 
-    var vbo: gl.Uint = undefined;
-    gl.genBuffers(1, &vbo);
-    defer gl.deleteBuffers(1, &vbo);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.vertexAttribPointer(
+        0,
+        3,
+        gl.FLOAT,
+        gl.FALSE,
+        3 * @sizeOf(gl.Float),
+        @ptrFromInt(0),
+    );
+    gl.enableVertexAttribArray(0);
+
+    var triangle_yellow_vao: gl.Uint = undefined;
+    gl.genVertexArrays(1, &triangle_yellow_vao);
+    defer gl.deleteVertexArrays(1, &triangle_yellow_vao);
+    gl.bindVertexArray(triangle_yellow_vao);
+
+    var triangle_yellow_vbo: gl.Uint = undefined;
+    gl.genBuffers(1, &triangle_yellow_vbo);
+    defer gl.deleteBuffers(1, &triangle_yellow_vbo);
+    gl.bindBuffer(gl.ARRAY_BUFFER, triangle_yellow_vbo);
     gl.bufferData(
         gl.ARRAY_BUFFER,
-        @sizeOf(@TypeOf(vertices)),
-        &vertices,
+        @sizeOf(@TypeOf(triangle_yellow)),
+        &triangle_yellow,
         gl.STATIC_DRAW,
     );
 
@@ -134,9 +162,13 @@ pub fn main() !void {
             gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
         }
 
-        gl.useProgram(shader_program);
-        gl.bindVertexArray(vao);
-        gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, @ptrFromInt(0));
+        gl.useProgram(triangle_orange_program);
+        gl.bindVertexArray(triangle_orange_vao);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+        gl.useProgram(triangle_yellow_program);
+        gl.bindVertexArray(triangle_yellow_vao);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
 
         window.swapBuffers();
     }
@@ -159,12 +191,21 @@ const shader_vertex_source =
     \\ }
 ;
 
-const shader_fragment_source =
+const shader_fragment_orange_source =
     \\ #version 330 core
     \\ out vec4 FragColor;
     \\
     \\ void main() {
     \\  FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
+    \\ }
+;
+
+const shader_fragment_yellow_source =
+    \\ #version 330 core
+    \\ out vec4 FragColor;
+    \\
+    \\ void main() {
+    \\  FragColor = vec4(1.0f, 1.0f, 0.0f, 1.0f);
     \\ }
 ;
 
