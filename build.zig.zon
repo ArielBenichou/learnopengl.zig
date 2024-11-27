@@ -10,6 +10,10 @@
             .url = "git+https://github.com/zig-gamedev/zglfw#ce756faacf52c7531bc09bdc0201004596c0a01f",
             .hash = "1220a4d35f5b9b3f711853950c70ca372f0806421d78a7539e95249e03a49bca0ac2",
         },
+        .system_sdk = .{
+            .url = "git+https://github.com/zig-gamedev/system_sdk#bf49d627a191e339f70e72668c8333717fb969b0",
+            .hash = "1220cf8b14c8d7ca612245891eb7608c64f4fdcbeead9c067351df7d9adb19e38819",
+        },
     },
     .paths = .{
         "build.zig",
