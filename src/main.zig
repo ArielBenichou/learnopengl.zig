@@ -107,23 +107,9 @@ const initial_screen_size = .{
     .height = 600,
 };
 
-const shader_vertex_source =
-    \\ #version 330 core
-    \\ layout (location = 0) in vec3 aPos;
-    \\ void main()
-    \\ {
-    \\   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    \\ }
-;
+const shader_vertex_source = @embedFile("./shaders/default.vert.glsl");
 
-const shader_fragment_source =
-    \\ #version 330 core
-    \\ out vec4 FragColor;
-    \\
-    \\ void main() {
-    \\  FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
-    \\ }
-;
+const shader_fragment_source = @embedFile("./shaders/default.frag.glsl");
 
 fn createShader(source: [:0]const u8, shader_type: gl.Enum, name: [:0]const u8) !gl.Uint {
     const shader = gl.createShader(shader_type);
