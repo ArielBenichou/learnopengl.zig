@@ -2,9 +2,17 @@ const std = @import("std");
 const builtin = @import("builtin");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
+const zstbi = @import("zstbi");
 const gl = zopengl.bindings;
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer std.debug.assert(gpa.deinit() == .ok);
+
+    zstbi.init(allocator);
+    defer zstbi.deinit();
+
     try glfw.init();
     defer glfw.terminate();
 
@@ -61,7 +69,15 @@ pub fn main() !void {
         shader_fragment,
     );
 
-    const vertices = [_]gl.Float{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
+    // zig fmt: off
+    const vertices = [_]gl.Float {
+        // positions       // colors        // texture coords
+         0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0,   // top right
+         0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
+        -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
+        -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0    // top let 
+    };
+    // zig fmt: on
 
     var vao: gl.Uint = undefined;
     gl.genVertexArrays(1, &vao);
@@ -86,6 +102,29 @@ pub fn main() !void {
         @ptrFromInt(0),
     );
     gl.enableVertexAttribArray(0);
+
+    var texture: gl.Uint = undefined;
+    gl.genTextures(1, &texture);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    var image = try zstbi.Image.loadFromFile("assets/container.jpg", 0);
+    defer image.deinit();
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGB,
+        @as(gl.Int, @intCast(image.width)),
+        @as(gl.Int, @intCast(image.height)),
+        0,
+        gl.RGB,
+        gl.UNSIGNED_BYTE,
+        @ptrCast(image.data),
+    );
+    gl.generateMipmap(gl.TEXTURE_2D);
 
     glfw.swapInterval(1); // WHY?
     while (!window.shouldClose()) {

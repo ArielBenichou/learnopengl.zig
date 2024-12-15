@@ -11,15 +11,23 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    //---zglfw
     const zglfw = b.dependency("zglfw", .{
         .target = target,
     });
     exe.root_module.addImport("zglfw", zglfw.module("root"));
     exe.linkLibrary(zglfw.artifact("glfw"));
 
+    //---zopengl
     const zopengl = b.dependency("zopengl", .{});
     exe.root_module.addImport("zopengl", zopengl.module("root"));
 
+    //---zstbi
+    const zstbi = b.dependency("zstbi", .{});
+    exe.root_module.addImport("zstbi", zstbi.module("root"));
+    exe.linkLibrary(zstbi.artifact("zstbi"));
+
+    //---system_sdk
     if (target.result.os.tag == .macos) {
         if (b.lazyDependency("system_sdk", .{})) |system_sdk| {
             exe.addLibraryPath(system_sdk.path("macos12/usr/lib"));
