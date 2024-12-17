@@ -71,6 +71,11 @@ pub fn main() !void {
         -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
         -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0    // top let 
     };
+
+    const indices = [_]gl.Float{
+        0, 1, 3,
+        1, 2, 3,
+    };
     // zig fmt: on
 
     var vao: gl.Uint = undefined;
@@ -89,22 +94,47 @@ pub fn main() !void {
         gl.STATIC_DRAW,
     );
 
+    var ebo: gl.Uint = undefined;
+    gl.genBuffers(1, &ebo);
+    defer gl.deleteBuffers(1, &ebo);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
+    gl.bufferData(
+        gl.ELEMENT_ARRAY_BUFFER,
+        @sizeOf(@TypeOf(indices)),
+        &indices,
+        gl.STATIC_DRAW,
+    );
+
+    // pos attrib
     gl.vertexAttribPointer(
         0,
         3,
         gl.FLOAT,
         gl.FALSE,
-        6 * @sizeOf(gl.Float),
+        8 * @sizeOf(gl.Float),
         @ptrFromInt(0),
     );
     gl.enableVertexAttribArray(0);
+
+    // color attrib
     gl.vertexAttribPointer(
         1,
         3,
         gl.FLOAT,
         gl.FALSE,
-        6 * @sizeOf(gl.Float),
+        8 * @sizeOf(gl.Float),
         @ptrFromInt(3 * @sizeOf(gl.Float)),
+    );
+    gl.enableVertexAttribArray(1);
+
+    // texcoord attrib
+    gl.vertexAttribPointer(
+        2,
+        2,
+        gl.FLOAT,
+        gl.FALSE,
+        8 * @sizeOf(gl.Float),
+        @ptrFromInt(6 * @sizeOf(gl.Float)),
     );
     gl.enableVertexAttribArray(1);
 
@@ -116,20 +146,28 @@ pub fn main() !void {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
-    var image = try zstbi.Image.loadFromFile("assets/container.jpg", 0);
-    defer image.deinit();
-    gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGB,
-        @as(gl.Int, @intCast(image.width)),
-        @as(gl.Int, @intCast(image.height)),
-        0,
-        gl.RGB,
-        gl.UNSIGNED_BYTE,
-        @ptrCast(image.data),
-    );
-    gl.generateMipmap(gl.TEXTURE_2D);
+    {
+        var image = try zstbi.Image.loadFromFile(
+            "assets/container.jpg",
+            0,
+        );
+        defer image.deinit();
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGB,
+            @as(gl.Int, @intCast(image.width)),
+            @as(gl.Int, @intCast(image.height)),
+            0,
+            gl.RGB,
+            gl.UNSIGNED_BYTE,
+            @ptrCast(image.data),
+        );
+        gl.generateMipmap(gl.TEXTURE_2D);
+    }
+
+    shader.use();
+    shader.setInt("tex", 0);
 
     glfw.swapInterval(1); // WHY?
     while (!window.shouldClose()) {
@@ -138,10 +176,16 @@ pub fn main() !void {
         gl.clearColor(0.2, 0.3, 0.3, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
-        shader.use();
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
 
         gl.bindVertexArray(vao);
-        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.drawElements(
+            gl.TRIANGLES,
+            6,
+            gl.UNSIGNED_INT,
+            @ptrFromInt(0),
+        );
 
         window.swapBuffers();
         glfw.pollEvents();
