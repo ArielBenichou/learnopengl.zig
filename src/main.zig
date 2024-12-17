@@ -1,10 +1,14 @@
-const std = @import("std");
 const builtin = @import("builtin");
+const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const zstbi = @import("zstbi");
 const gl = zopengl.bindings;
 const Shader = @import("Shader.zig").Shader;
+const VertexArray = @import("VertexArray.zig").VertexArray;
+const VertexBuffer = @import("VertexBuffer.zig").VertexBuffer;
+const IndexBuffer = @import("IndexBuffer.zig").IndexBuffer;
+const Texture2D = @import("Texture2D.zig").Texture2D;
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -13,6 +17,7 @@ pub fn main() !void {
     defer std.debug.assert(gpa.deinit() == .ok);
 
     zstbi.init(allocator);
+    zstbi.setFlipVerticallyOnLoad(true);
     defer zstbi.deinit();
 
     try glfw.init();
@@ -69,107 +74,70 @@ pub fn main() !void {
          0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0,   // top right
          0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
         -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
-        -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0    // top let 
+        -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
     };
 
-    const indices = [_]gl.Float{
+    const indices = [_]gl.Uint{
         0, 1, 3,
         1, 2, 3,
     };
     // zig fmt: on
 
-    var vao: gl.Uint = undefined;
-    gl.genVertexArrays(1, &vao);
-    defer gl.deleteVertexArrays(1, &vao);
-    gl.bindVertexArray(vao);
+    const rect_vao = VertexArray.init();
+    defer rect_vao.deinit();
+    rect_vao.bind();
 
-    var vbo: gl.Uint = undefined;
-    gl.genBuffers(1, &vbo);
-    defer gl.deleteBuffers(1, &vbo);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.bufferData(
-        gl.ARRAY_BUFFER,
-        @sizeOf(@TypeOf(vertices)),
-        &vertices,
-        gl.STATIC_DRAW,
-    );
-
-    var ebo: gl.Uint = undefined;
-    gl.genBuffers(1, &ebo);
-    defer gl.deleteBuffers(1, &ebo);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
-    gl.bufferData(
-        gl.ELEMENT_ARRAY_BUFFER,
-        @sizeOf(@TypeOf(indices)),
-        &indices,
-        gl.STATIC_DRAW,
-    );
+    var rect_vbo = VertexBuffer.init(&vertices, 8, .StaticDraw);
+    defer rect_vbo.deinit();
+    rect_vbo.bind();
 
     // pos attrib
-    gl.vertexAttribPointer(
-        0,
-        3,
-        gl.FLOAT,
-        gl.FALSE,
-        8 * @sizeOf(gl.Float),
-        @ptrFromInt(0),
-    );
-    gl.enableVertexAttribArray(0);
-
+    rect_vbo.addAttribute(3, gl.FLOAT, gl.FALSE);
     // color attrib
-    gl.vertexAttribPointer(
-        1,
-        3,
-        gl.FLOAT,
-        gl.FALSE,
-        8 * @sizeOf(gl.Float),
-        @ptrFromInt(3 * @sizeOf(gl.Float)),
-    );
-    gl.enableVertexAttribArray(1);
-
+    rect_vbo.addAttribute(3, gl.FLOAT, gl.FALSE);
     // texcoord attrib
-    gl.vertexAttribPointer(
-        2,
-        2,
-        gl.FLOAT,
-        gl.FALSE,
-        8 * @sizeOf(gl.Float),
-        @ptrFromInt(6 * @sizeOf(gl.Float)),
-    );
-    gl.enableVertexAttribArray(1);
+    rect_vbo.addAttribute(2, gl.FLOAT, gl.FALSE);
 
-    var texture: gl.Uint = undefined;
-    gl.genTextures(1, &texture);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    const rect_ebo = IndexBuffer.init(&indices, .StaticDraw);
+    defer rect_ebo.deinit();
+    rect_ebo.bind();
 
-    {
+    const crate_tex = tex: {
         var image = try zstbi.Image.loadFromFile(
             "assets/container.jpg",
             0,
         );
         defer image.deinit();
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGB,
-            @as(gl.Int, @intCast(image.width)),
-            @as(gl.Int, @intCast(image.height)),
-            0,
-            gl.RGB,
-            gl.UNSIGNED_BYTE,
-            @ptrCast(image.data),
+        break :tex Texture2D.init(
+            image.data,
+            image.width,
+            image.height,
+            .RGB,
         );
-        gl.generateMipmap(gl.TEXTURE_2D);
-    }
+    };
+    defer crate_tex.deinit();
+
+    const face_tex = tex: {
+        var image = try zstbi.Image.loadFromFile(
+            "assets/awesomeface.png",
+            0,
+        );
+        defer image.deinit();
+        break :tex Texture2D.init(
+            image.data,
+            image.width,
+            image.height,
+            .RGBA,
+        );
+    };
+    defer face_tex.deinit();
 
     shader.use();
-    shader.setInt("tex", 0);
+    shader.setInt("base_tex", 0);
+    shader.setInt("overlay_tex", 1);
 
-    glfw.swapInterval(1); // WHY?
+    glfw.swapInterval(1);
+
     while (!window.shouldClose()) {
         processInput(window);
 
@@ -177,12 +145,14 @@ pub fn main() !void {
         gl.clear(gl.COLOR_BUFFER_BIT);
 
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, texture);
+        crate_tex.bind();
+        gl.activeTexture(gl.TEXTURE1);
+        face_tex.bind();
 
-        gl.bindVertexArray(vao);
+        rect_vao.bind();
         gl.drawElements(
             gl.TRIANGLES,
-            6,
+            rect_ebo.count,
             gl.UNSIGNED_INT,
             @ptrFromInt(0),
         );

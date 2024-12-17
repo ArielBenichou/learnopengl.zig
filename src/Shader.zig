@@ -6,7 +6,7 @@ pub const Shader = struct {
 
     id: gl.Uint,
 
-    pub fn init(allocator: std.mem.Allocator, vertex_path: []const u8, fragment_path: []const u8) !Shader {
+    pub fn init(allocator: std.mem.Allocator, vertex_path: []const u8, fragment_path: []const u8) !Self {
         const vertex_source = try std.fs.cwd().readFileAlloc(
             allocator,
             vertex_path,
