@@ -25,14 +25,14 @@ pub fn main() !void {
 
     const gl_major = 3;
     const gl_minor = 3;
-    glfw.windowHintTyped(.context_version_major, gl_major);
-    glfw.windowHintTyped(.context_version_minor, gl_minor);
-    glfw.windowHintTyped(.opengl_profile, .opengl_core_profile);
+    glfw.windowHint(.context_version_major, gl_major);
+    glfw.windowHint(.context_version_minor, gl_minor);
+    glfw.windowHint(.opengl_profile, .opengl_core_profile);
     if (builtin.target.os.tag.isDarwin()) {
-        glfw.windowHintTyped(.opengl_forward_compat, true);
+        glfw.windowHint(.opengl_forward_compat, true);
     }
-    glfw.windowHintTyped(.client_api, .opengl_api);
-    glfw.windowHintTyped(.doublebuffer, true);
+    glfw.windowHint(.client_api, .opengl_api);
+    glfw.windowHint(.doublebuffer, true);
 
     const window = glfw.Window.create(
         initial_screen_size.width,
@@ -59,7 +59,7 @@ pub fn main() !void {
         initial_screen_size.width,
         initial_screen_size.height,
     );
-    _ = window.setFramebufferSizeCallback(framebufferSizeCallback);
+    _ = window.setFramebufferCallback(framebufferSizeCallback);
 
     const shader = try Shader.init(
         allocator,

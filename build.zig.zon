@@ -3,20 +3,20 @@
     .version = "0.0.0",
     .dependencies = .{
         .zopengl = .{
-            .url = "git+https://github.com/zig-gamedev/zopengl#745a731c6d585a277c1cf9063fb01f879b03ab25",
-            .hash = "122004c604729bd73e6d36491babedf82f5f177374c7535a74145b4505407c45ae9a",
+            .url = "https://github.com/zig-gamedev/zopengl/archive/refs/heads/main.tar.gz",
+            .hash = "1220214a9591f6f2a15ac3e53810c3a593e868fa3ee17f0809c3420444e462c9b40f",
         },
         .zglfw = .{
-            .url = "git+https://github.com/zig-gamedev/zglfw#ce756faacf52c7531bc09bdc0201004596c0a01f",
-            .hash = "1220a4d35f5b9b3f711853950c70ca372f0806421d78a7539e95249e03a49bca0ac2",
+            .url = "https://github.com/zig-gamedev/zglfw/archive/refs/heads/main.tar.gz",
+            .hash = "12209fb981e7aab58c2f9062ab526bd43df3d7953aa41e131a173c37ad35d10b1132",
         },
         .system_sdk = .{
-            .url = "git+https://github.com/zig-gamedev/system_sdk#bf49d627a191e339f70e72668c8333717fb969b0",
-            .hash = "1220cf8b14c8d7ca612245891eb7608c64f4fdcbeead9c067351df7d9adb19e38819",
+            .url = "https://github.com/zig-gamedev/system-sdk/archive/refs/heads/main.tar.gz",
+            .hash = "122047a9298c4c9dd43389d418d6826d469b192246ba0944102964cdc57f94c562df",
         },
         .zstbi = .{
-            .url = "git+https://github.com/zig-gamedev/zstbi#d1a7f8073decd0251e78cea6163c0eec24e0815e",
-            .hash = "12208b7d15a730294a7d8ee3a9d3ef145e109f94d0a68be7f0ee282e0630ede093d5",
+            .url = "https://github.com/zig-gamedev/zstbi/archive/refs/heads/main.tar.gz",
+            .hash = "1220236000369d5fc71cd48c1f431f1b228dc2c736bef938dfd01917b85e2f0e3a90",
         },
     },
     .paths = .{
