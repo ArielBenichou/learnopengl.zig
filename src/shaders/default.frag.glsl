@@ -1,7 +1,7 @@
 #version 330 core
 
-in vec3 vertex_color;
 in vec3 vertex_pos;
+in vec3 vertex_color;
 in vec2 vertex_texcoord;
 
 uniform sampler2D base_tex;
@@ -14,5 +14,6 @@ void main() {
     texture(base_tex, vertex_texcoord),
     texture(overlay_tex, vertex_texcoord),
     0.2 
-  ) * vertex_pos.xxxx;
+  );
+  frag_color = mix(frag_color, vec4(vertex_color, 1.0), abs(vertex_pos.x/2) + abs(vertex_pos.y/2));
 }
