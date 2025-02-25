@@ -1,4 +1,5 @@
 const std = @import("std");
+const zm = @import("zmath");
 const gl = @import("zopengl").bindings;
 
 pub const Shader = struct {
@@ -73,6 +74,14 @@ pub const Shader = struct {
         gl.uniform1f(
             gl.getUniformLocation(self.id, name.ptr),
             value,
+        );
+    }
+    pub fn setMat(self: Self, name: []const u8, value: *zm.Mat) void {
+        gl.uniformMatrix4fv(
+            gl.getUniformLocation(self.id, name.ptr),
+            1,
+            gl.TRUE,
+            zm.arrNPtr(value),
         );
     }
 

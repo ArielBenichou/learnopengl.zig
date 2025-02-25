@@ -3,6 +3,7 @@ const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const zstbi = @import("zstbi");
+const zm = @import("zmath");
 const gl = zopengl.bindings;
 const Shader = @import("Shader.zig").Shader;
 const VertexArray = @import("VertexArray.zig").VertexArray;
@@ -139,8 +140,15 @@ pub fn main() !void {
     glfw.swapInterval(1);
 
     while (!window.shouldClose()) {
+        // UPDATE
+        var trans = zm.identity();
+        trans = zm.mul(trans, zm.translation(0.5, -0.5, 0.0));
+        trans = zm.mul(trans, zm.rotationZ(@floatCast(glfw.getTime())));
+        shader.setMat("transform", &trans);
+
         processInput(window);
 
+        // DRAW
         gl.clearColor(0.2, 0.3, 0.3, 1.0);
         gl.clear(gl.COLOR_BUFFER_BIT);
 
