@@ -148,8 +148,17 @@ pub fn main() !void {
             0.1,
             WORLD_SPACE_SIZE,
         );
-        const view = zm.mul(zm.translation(0, 0, 0), zm.rotationZ(std.math.degreesToRadians(45)));
-        const model = zm.mul(zm.translation(0, 0, 0), zm.rotationZ(std.math.degreesToRadians(0)));
+        const view = zm.mul(
+            zm.mul(
+                zm.scaling(1.5, 1.5, 0),
+                zm.rotationZ(std.math.degreesToRadians(45)),
+            ),
+            zm.translation(0, 0, 0),
+        );
+        const model = zm.mul(
+            zm.translation(0, 0, 0),
+            zm.rotationZ(std.math.degreesToRadians(0)),
+        );
         const mvp = zm.mul(zm.mul(projection, view), model);
         shader.setMat("mvp", &mvp);
 
@@ -181,6 +190,7 @@ const ScreenSize = struct {
     width: gl.Sizei = 800,
     height: gl.Sizei = 600,
 };
+// TODO: use window.getSize()
 var screen_size = ScreenSize{};
 const WORLD_SPACE_SIZE = 20;
 
