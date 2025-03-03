@@ -36,8 +36,8 @@ pub fn main() !void {
     glfw.windowHint(.doublebuffer, true);
 
     const window = glfw.Window.create(
-        initial_screen_size.width,
-        initial_screen_size.height,
+        screen_size.width,
+        screen_size.height,
         "LearnOpenGL",
         null,
     ) catch {
@@ -57,8 +57,8 @@ pub fn main() !void {
     gl.viewport(
         0,
         0,
-        initial_screen_size.width,
-        initial_screen_size.height,
+        screen_size.width,
+        screen_size.height,
     );
     _ = window.setFramebufferCallback(framebufferSizeCallback);
 
@@ -71,11 +71,11 @@ pub fn main() !void {
 
     // zig fmt: off
     const vertices = [_]gl.Float {
-        // positions       // colors        // texture coords
-         0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0,   // top right
-         0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
-        -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
-        -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
+        // positions  // colors        // texture coords
+         5,  5, 0,     1.0, 0.0, 0.0,   1.0, 1.0,   // top right
+         5, -5, 0,     0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
+        -5, -5, 0,     0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
+        -5,  5, 0,     1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
     };
 
     const indices = [_]gl.Uint{
@@ -141,10 +141,17 @@ pub fn main() !void {
 
     while (!window.shouldClose()) {
         // UPDATE
-        var trans = zm.identity();
-        trans = zm.mul(trans, zm.translation(0.5, -0.5, 0.0));
-        trans = zm.mul(trans, zm.rotationZ(@floatCast(glfw.getTime())));
-        shader.setMat("transform", &trans);
+        const aspect_ratio = @as(f32, @floatFromInt(screen_size.width)) / @as(f32, @floatFromInt(screen_size.height));
+        const projection = zm.orthographicLhGl(
+            WORLD_SPACE_SIZE * aspect_ratio,
+            WORLD_SPACE_SIZE,
+            0.1,
+            WORLD_SPACE_SIZE,
+        );
+        const view = zm.mul(zm.translation(0, 0, 0), zm.rotationZ(std.math.degreesToRadians(45)));
+        const model = zm.mul(zm.translation(0, 0, 0), zm.rotationZ(std.math.degreesToRadians(0)));
+        const mvp = zm.mul(zm.mul(projection, view), model);
+        shader.setMat("mvp", &mvp);
 
         processInput(window);
 
@@ -170,13 +177,17 @@ pub fn main() !void {
     }
 }
 
-const initial_screen_size = .{
-    .width = 800,
-    .height = 600,
+const ScreenSize = struct {
+    width: gl.Sizei = 800,
+    height: gl.Sizei = 600,
 };
+var screen_size = ScreenSize{};
+const WORLD_SPACE_SIZE = 20;
 
 fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
+    screen_size.height = height;
+    screen_size.width = width;
     gl.viewport(
         0,
         0,

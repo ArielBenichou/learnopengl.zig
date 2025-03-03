@@ -8,11 +8,11 @@ out vec3 vertex_pos;
 out vec3 vertex_color;
 out vec2 vertex_texcoord;
 
-uniform mat4 transform;
+uniform mat4 mvp;
 
 void main() {
-  gl_Position = transform * vec4(pos.x, pos.y, pos.z, 1.0);
-  vertex_pos = pos;
+  gl_Position = mvp * vec4(pos, 1.0);
+  vertex_pos = gl_Position.xyz;
   vertex_color = color;
   vertex_texcoord = texcoord;
 }
