@@ -76,12 +76,12 @@ pub const Shader = struct {
             value,
         );
     }
-    pub fn setMat(self: Self, name: []const u8, value: *const zm.Mat) void {
+    pub fn setMat(self: Self, name: []const u8, value: [16]f32) void {
         gl.uniformMatrix4fv(
             gl.getUniformLocation(self.id, name.ptr),
             1,
-            gl.TRUE,
-            zm.arrNPtr(value),
+            gl.FALSE,
+            &value,
         );
     }
 

@@ -12,18 +12,14 @@ const IndexBuffer = @import("IndexBuffer.zig").IndexBuffer;
 const Texture2D = @import("Texture2D.zig").Texture2D;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
-    defer std.debug.assert(gpa.deinit() == .ok);
-
-    zstbi.init(allocator);
-    zstbi.setFlipVerticallyOnLoad(true);
-    defer zstbi.deinit();
-
-    try glfw.init();
+    // glfw: init & config
+    glfw.init() catch {
+        std.log.err("GLFW Initilization failed", .{});
+        std.process.exit(1);
+    };
     defer glfw.terminate();
 
+    // glfw: window creation
     const gl_major = 3;
     const gl_minor = 3;
     glfw.windowHint(.context_version_major, gl_major);
@@ -36,34 +32,43 @@ pub fn main() !void {
     glfw.windowHint(.doublebuffer, true);
 
     const window = glfw.Window.create(
-        screen_size.width,
-        screen_size.height,
-        "LearnOpenGL",
+        WindowSize.width,
+        WindowSize.height,
+        "LearnOpenGL: ZIG Edition",
         null,
     ) catch {
+        std.log.err("GLFW Window creation failed", .{});
         glfw.terminate();
         std.process.exit(1);
     };
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
+    _ = window.setFramebufferCallback(framebufferSizeCallback);
 
+    // OpenGL: load profile
     try zopengl.loadCoreProfile(
         glfw.getProcAddress,
         gl_major,
         gl_minor,
     );
 
-    gl.viewport(
-        0,
-        0,
-        screen_size.width,
-        screen_size.height,
-    );
-    _ = window.setFramebufferCallback(framebufferSizeCallback);
+    // Allocators
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    defer std.debug.assert(gpa.deinit() == .ok);
+    const allocator = gpa.allocator();
+    var arena_allocator_state = std.heap.ArenaAllocator.init(allocator);
+    defer arena_allocator_state.deinit();
+    const arena = arena_allocator_state.allocator();
 
+    // zstbi: init
+    zstbi.init(allocator);
+    zstbi.setFlipVerticallyOnLoad(true);
+    defer zstbi.deinit();
+
+    // shader: create
     const shader = try Shader.init(
-        allocator,
+        arena,
         "./src/shaders/default.vert.glsl",
         "./src/shaders/default.frag.glsl",
     );
@@ -71,11 +76,11 @@ pub fn main() !void {
 
     // zig fmt: off
     const vertices = [_]gl.Float {
-        // positions  // colors        // texture coords
-         5,  5, 0,     1.0, 0.0, 0.0,   1.0, 1.0,   // top right
-         5, -5, 0,     0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
-        -5, -5, 0,     0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
-        -5,  5, 0,     1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
+        // positions       // colors        // texture coords
+         0.5,  0.5, 0,     1.0, 0.0, 0.0,   1.0, 1.0,   // top right
+         0.5, -0.5, 0,     0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
+        -0.5, -0.5, 0,     0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
+        -0.5,  0.5, 0,     1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
     };
 
     const indices = [_]gl.Uint{
@@ -137,31 +142,19 @@ pub fn main() !void {
     shader.setInt("base_tex", 0);
     shader.setInt("overlay_tex", 1);
 
+    var model: [16]f32 = undefined;
+
+    const viewM = zm.translation(0, 0, -3.0);
+    var view: [16]f32 = undefined;
+    zm.storeMat(&view, viewM);
+    shader.setMat("view", view);
+
+    var projection: [16]f32 = undefined;
+
     glfw.swapInterval(1);
 
     while (!window.shouldClose()) {
         // UPDATE
-        const aspect_ratio = @as(f32, @floatFromInt(screen_size.width)) / @as(f32, @floatFromInt(screen_size.height));
-        const projection = zm.orthographicLhGl(
-            WORLD_SPACE_SIZE * aspect_ratio,
-            WORLD_SPACE_SIZE,
-            0.1,
-            WORLD_SPACE_SIZE,
-        );
-        const view = zm.mul(
-            zm.mul(
-                zm.scaling(1.5, 1.5, 0),
-                zm.rotationZ(std.math.degreesToRadians(45)),
-            ),
-            zm.translation(0, 0, 0),
-        );
-        const model = zm.mul(
-            zm.translation(0, 0, 0),
-            zm.rotationZ(std.math.degreesToRadians(0)),
-        );
-        const mvp = zm.mul(zm.mul(projection, view), model);
-        shader.setMat("mvp", &mvp);
-
         processInput(window);
 
         // DRAW
@@ -172,8 +165,24 @@ pub fn main() !void {
         crate_tex.bind();
         gl.activeTexture(gl.TEXTURE1);
         face_tex.bind();
-
         rect_vao.bind();
+
+        const projM = x: {
+            const window_size = window.getSize();
+            const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
+            const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(45), fov, 0.1, 100.0);
+            break :x projM;
+        };
+        zm.storeMat(&projection, projM);
+        shader.setMat("projection", projection);
+
+        const modelM = zm.mul(
+            zm.rotationX(std.math.degreesToRadians(-55)),
+            zm.translation(0, 0, 0),
+        );
+        zm.storeMat(&model, modelM);
+        shader.setMat("model", model);
+
         gl.drawElements(
             gl.TRIANGLES,
             rect_ebo.count,
@@ -186,18 +195,13 @@ pub fn main() !void {
     }
 }
 
-const ScreenSize = struct {
-    width: gl.Sizei = 800,
-    height: gl.Sizei = 600,
+const WindowSize = struct {
+    pub const width: u32 = 800;
+    pub const height: u32 = 600;
 };
-// TODO: use window.getSize()
-var screen_size = ScreenSize{};
-const WORLD_SPACE_SIZE = 20;
 
 fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
-    screen_size.height = height;
-    screen_size.width = width;
     gl.viewport(
         0,
         0,

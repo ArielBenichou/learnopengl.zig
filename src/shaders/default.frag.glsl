@@ -15,5 +15,5 @@ void main() {
     texture(overlay_tex, vertex_texcoord),
     0.2 
   );
-  frag_color = mix(frag_color, vec4(vertex_color, 1.0), abs(vertex_pos.x/2) + abs(vertex_pos.y/2));
+  // frag_color = mix(frag_color, vec4(vertex_color, 1.0), abs(vertex_pos.x/2) + abs(vertex_pos.y/2));
 }
