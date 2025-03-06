@@ -25,7 +25,6 @@ pub fn build(b: *std.Build) void {
     //---zstbi
     const zstbi = b.dependency("zstbi", .{});
     exe.root_module.addImport("zstbi", zstbi.module("root"));
-    exe.linkLibrary(zstbi.artifact("zstbi"));
 
     //---zmath
     const zmath = b.dependency("zmath", .{});

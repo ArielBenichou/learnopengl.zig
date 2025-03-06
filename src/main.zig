@@ -44,7 +44,7 @@ pub fn main() !void {
     defer window.destroy();
 
     glfw.makeContextCurrent(window);
-    _ = window.setFramebufferCallback(framebufferSizeCallback);
+    _ = window.setFramebufferSizeCallback(framebufferSizeCallback);
 
     // OpenGL: load profile
     try zopengl.loadCoreProfile(
@@ -76,16 +76,61 @@ pub fn main() !void {
 
     // zig fmt: off
     const vertices = [_]gl.Float {
-        // positions       // colors        // texture coords
-         0.5,  0.5, 0,     1.0, 0.0, 0.0,   1.0, 1.0,   // top right
-         0.5, -0.5, 0,     0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
-        -0.5, -0.5, 0,     0.0, 0.0, 1.0,   0.0, 0.0,   // bottom let
-        -0.5,  0.5, 0,     1.0, 1.0, 0.0,   0.0, 1.0,   // top let 
+        // positions       // tex coords
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+         0.5, -0.5, -0.5,  1.0, 0.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+
+         0.5,  0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5,  0.5,  0.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5, -0.5,  1.0, 1.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0
     };
 
-    const indices = [_]gl.Uint{
-        0, 1, 3,
-        1, 2, 3,
+    const cube_positions = [_][3]f32{
+        .{  0.0,  0.0,  0.0  },
+        .{  2.0,  5.0, -15.0 },
+        .{ -1.5, -2.2, -2.5  },
+        .{ -3.8, -2.0, -12.3 },
+        .{  2.4, -0.4, -3.5  },
+        .{ -1.7,  3.0, -7.5  },
+        .{  1.3, -2.0, -2.5  },
+        .{  1.5,  2.0, -2.5  },
+        .{  1.5,  0.2, -1.5  },
+        .{ -1.3,  1.0, -1.5  },
     };
     // zig fmt: on
 
@@ -93,20 +138,14 @@ pub fn main() !void {
     defer rect_vao.deinit();
     rect_vao.bind();
 
-    var rect_vbo = VertexBuffer.init(&vertices, 8, .StaticDraw);
+    var rect_vbo = VertexBuffer.init(&vertices, 5, .StaticDraw);
     defer rect_vbo.deinit();
     rect_vbo.bind();
 
     // pos attrib
     rect_vbo.addAttribute(3, gl.FLOAT, gl.FALSE);
-    // color attrib
-    rect_vbo.addAttribute(3, gl.FLOAT, gl.FALSE);
     // texcoord attrib
     rect_vbo.addAttribute(2, gl.FLOAT, gl.FALSE);
-
-    const rect_ebo = IndexBuffer.init(&indices, .StaticDraw);
-    defer rect_ebo.deinit();
-    rect_ebo.bind();
 
     const crate_tex = tex: {
         var image = try zstbi.Image.loadFromFile(
@@ -138,6 +177,8 @@ pub fn main() !void {
     };
     defer face_tex.deinit();
 
+    gl.enable(gl.DEPTH_TEST);
+
     shader.use();
     shader.setInt("base_tex", 0);
     shader.setInt("overlay_tex", 1);
@@ -159,7 +200,7 @@ pub fn main() !void {
 
         // DRAW
         gl.clearColor(0.2, 0.3, 0.3, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         gl.activeTexture(gl.TEXTURE0);
         crate_tex.bind();
@@ -176,19 +217,24 @@ pub fn main() !void {
         zm.storeMat(&projection, projM);
         shader.setMat("projection", projection);
 
-        const modelM = zm.mul(
-            zm.rotationX(std.math.degreesToRadians(-55)),
-            zm.translation(0, 0, 0),
-        );
-        zm.storeMat(&model, modelM);
-        shader.setMat("model", model);
+        for (cube_positions, 0..) |cube_position, i| {
+            const cube_trans = zm.translation(cube_position[0], cube_position[1], cube_position[2]);
+            // alternate -1 / 1
+            const rotation_direction = ((@mod(@as(f32, @floatFromInt(i + 1)), 2.0)) * 2.0) - 1.0;
+            const cube_rot = zm.matFromAxisAngle(
+                zm.f32x4(1, 0.3, 0.5, 1.0),
+                std.math.degreesToRadians(55) * rotation_direction * @as(f32, @floatCast(glfw.getTime() * 0.5)),
+            );
 
-        gl.drawElements(
-            gl.TRIANGLES,
-            rect_ebo.count,
-            gl.UNSIGNED_INT,
-            @ptrFromInt(0),
-        );
+            const modelM = zm.mul(
+                cube_rot,
+                cube_trans,
+            );
+            zm.storeMat(&model, modelM);
+            shader.setMat("model", model);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 36);
+        }
 
         window.swapBuffers();
         glfw.pollEvents();
