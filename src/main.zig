@@ -185,10 +185,7 @@ pub fn main() !void {
 
     var model: [16]f32 = undefined;
 
-    const viewM = zm.translation(0, 0, -3.0);
     var view: [16]f32 = undefined;
-    zm.storeMat(&view, viewM);
-    shader.setMat("view", view);
 
     var projection: [16]f32 = undefined;
 
@@ -207,6 +204,14 @@ pub fn main() !void {
         gl.activeTexture(gl.TEXTURE1);
         face_tex.bind();
         rect_vao.bind();
+
+        const viewM = zm.lookAtRh(
+            camera.pos,
+            camera.pos + camera.front,
+            camera.up,
+        );
+        zm.storeMat(&view, viewM);
+        shader.setMat("view", view);
 
         const projM = x: {
             const window_size = window.getSize();
@@ -245,6 +250,18 @@ const WindowSize = struct {
     pub const width: u32 = 800;
     pub const height: u32 = 600;
 };
+const Camera = struct {
+    pos: zm.Vec,
+    front: zm.Vec,
+    up: zm.Vec,
+    speed: f32,
+};
+var camera = Camera{
+    .pos = zm.loadArr3(.{ 0, 0, 3 }),
+    .front = zm.loadArr3(.{ 0, 0, -1 }),
+    .up = zm.loadArr3(.{ 0, 1, 0 }),
+    .speed = 0.05,
+};
 
 fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
@@ -259,5 +276,17 @@ fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callco
 fn processInput(window: *glfw.Window) callconv(.c) void {
     if (window.getKey(.escape) == .press) {
         window.setShouldClose(true);
+    }
+    if (window.getKey(.w) == .press) {
+        camera.pos += zm.splat(zm.Vec, camera.speed) * camera.front;
+    }
+    if (window.getKey(.s) == .press) {
+        camera.pos -= zm.splat(zm.Vec, camera.speed) * camera.front;
+    }
+    if (window.getKey(.a) == .press) {
+        camera.pos -= zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera.speed);
+    }
+    if (window.getKey(.d) == .press) {
+        camera.pos += zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera.speed);
     }
 }
