@@ -30,6 +30,16 @@ pub fn build(b: *std.Build) void {
     const zmath = b.dependency("zmath", .{});
     exe.root_module.addImport("zmath", zmath.module("root"));
 
+    //---zgui
+    const zgui = b.dependency("zgui", .{
+        .target = target,
+        .backend = .glfw_opengl3,
+        .shared = false,
+        .with_implot = true,
+    });
+    exe.root_module.addImport("zgui", zgui.module("root"));
+    exe.linkLibrary(zgui.artifact("imgui"));
+
     //---system_sdk
     if (target.result.os.tag == .macos) {
         if (b.lazyDependency("system_sdk", .{})) |system_sdk| {

@@ -3,6 +3,7 @@ const std = @import("std");
 const glfw = @import("zglfw");
 const zopengl = @import("zopengl");
 const zstbi = @import("zstbi");
+const zgui = @import("zgui");
 const zm = @import("zmath");
 const gl = zopengl.bindings;
 const Shader = @import("Shader.zig").Shader;
@@ -42,6 +43,7 @@ pub fn main() !void {
         std.process.exit(1);
     };
     defer window.destroy();
+    window.setSizeLimits(400, 400, -1, -1);
 
     glfw.makeContextCurrent(window);
     _ = window.setFramebufferSizeCallback(framebufferSizeCallback);
@@ -60,6 +62,13 @@ pub fn main() !void {
     var arena_allocator_state = std.heap.ArenaAllocator.init(allocator);
     defer arena_allocator_state.deinit();
     const arena = arena_allocator_state.allocator();
+
+    // zgui: init
+    zgui.init(allocator);
+    defer zgui.deinit();
+
+    zgui.backend.init(window);
+    defer zgui.backend.deinit();
 
     // zstbi: init
     zstbi.init(allocator);
@@ -192,60 +201,86 @@ pub fn main() !void {
     glfw.swapInterval(1);
 
     while (!window.shouldClose()) {
-        // UPDATE
-        const current_frame = @as(f32, @floatCast(glfw.getTime()));
-        state.delta_time = current_frame - state.last_frame;
-        state.last_frame = current_frame;
+        //---UPDATE
+        { // Update Time State
+            const current_frame = @as(f32, @floatCast(glfw.getTime()));
+            state.delta_time = current_frame - state.last_frame;
+            state.last_frame = current_frame;
+        }
         processInput(window);
 
-        // DRAW
-        gl.clearColor(0.2, 0.3, 0.3, 1.0);
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        //---DRAW
+        glfw.pollEvents();
 
-        gl.activeTexture(gl.TEXTURE0);
-        crate_tex.bind();
-        gl.activeTexture(gl.TEXTURE1);
-        face_tex.bind();
-        rect_vao.bind();
+        { // Clear
+            gl.clearColor(0.2, 0.3, 0.3, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
 
-        const viewM = zm.lookAtRh(
-            camera.pos,
-            camera.pos + camera.front,
-            camera.up,
-        );
-        zm.storeMat(&view, viewM);
-        shader.setMat("view", view);
+        { // Draw Cubes
+            gl.activeTexture(gl.TEXTURE0);
+            crate_tex.bind();
+            gl.activeTexture(gl.TEXTURE1);
+            face_tex.bind();
+            rect_vao.bind();
 
-        const projM = x: {
-            const window_size = window.getSize();
-            const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
-            const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(45), fov, 0.1, 100.0);
-            break :x projM;
-        };
-        zm.storeMat(&projection, projM);
-        shader.setMat("projection", projection);
-
-        for (cube_positions, 0..) |cube_position, i| {
-            const cube_trans = zm.translation(cube_position[0], cube_position[1], cube_position[2]);
-            // alternate -1 / 1
-            const rotation_direction = ((@mod(@as(f32, @floatFromInt(i + 1)), 2.0)) * 2.0) - 1.0;
-            const cube_rot = zm.matFromAxisAngle(
-                zm.f32x4(1, 0.3, 0.5, 1.0),
-                std.math.degreesToRadians(55) * rotation_direction * @as(f32, @floatCast(glfw.getTime() * 0.5)),
+            const viewM = zm.lookAtRh(
+                camera.pos,
+                camera.pos + camera.front,
+                camera.up,
             );
+            zm.storeMat(&view, viewM);
+            shader.setMat("view", view);
 
-            const modelM = zm.mul(
-                cube_rot,
-                cube_trans,
-            );
-            zm.storeMat(&model, modelM);
-            shader.setMat("model", model);
+            const projM = x: {
+                const window_size = window.getSize();
+                const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
+                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(45), fov, 0.1, 100.0);
+                break :x projM;
+            };
+            zm.storeMat(&projection, projM);
+            shader.setMat("projection", projection);
 
-            gl.drawArrays(gl.TRIANGLES, 0, 36);
+            for (cube_positions, 0..) |cube_position, i| {
+                const cube_trans = zm.translation(cube_position[0], cube_position[1], cube_position[2]);
+                // alternate -1 / 1
+                const rotation_direction = ((@mod(@as(f32, @floatFromInt(i + 1)), 2.0)) * 2.0) - 1.0;
+                const cube_rot = zm.matFromAxisAngle(
+                    zm.f32x4(1, 0.3, 0.5, 1.0),
+                    std.math.degreesToRadians(55) * rotation_direction * @as(f32, @floatCast(glfw.getTime() * 0.5)),
+                );
+
+                const modelM = zm.mul(
+                    cube_rot,
+                    cube_trans,
+                );
+                zm.storeMat(&model, modelM);
+                shader.setMat("model", model);
+
+                gl.drawArrays(gl.TRIANGLES, 0, 36);
+            }
+        }
+
+        { // zgui
+            const framebuffer_size = window.getFramebufferSize();
+
+            zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
+
+            // Set the starting window position and size to custom values
+            zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
+            zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
+
+            if (zgui.begin("My window", .{})) {
+                if (zgui.button("Press me!", .{ .w = 200.0 })) {
+                    std.debug.print("Button pressed\n", .{});
+                }
+            }
+            zgui.end();
+
+            zgui.backend.draw();
         }
 
         window.swapBuffers();
-        glfw.pollEvents();
     }
 }
 
