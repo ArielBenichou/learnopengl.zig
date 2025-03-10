@@ -193,6 +193,9 @@ pub fn main() !void {
 
     while (!window.shouldClose()) {
         // UPDATE
+        const current_frame = @as(f32, @floatCast(glfw.getTime()));
+        state.delta_time = current_frame - state.last_frame;
+        state.last_frame = current_frame;
         processInput(window);
 
         // DRAW
@@ -250,6 +253,7 @@ const WindowSize = struct {
     pub const width: u32 = 800;
     pub const height: u32 = 600;
 };
+
 const Camera = struct {
     pos: zm.Vec,
     front: zm.Vec,
@@ -260,8 +264,15 @@ var camera = Camera{
     .pos = zm.loadArr3(.{ 0, 0, 3 }),
     .front = zm.loadArr3(.{ 0, 0, -1 }),
     .up = zm.loadArr3(.{ 0, 1, 0 }),
-    .speed = 0.05,
+    .speed = 2.5,
 };
+
+const State = struct {
+    delta_time: f32 = 0,
+    last_frame: f32 = 0,
+};
+
+var state = State{};
 
 fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
@@ -277,16 +288,17 @@ fn processInput(window: *glfw.Window) callconv(.c) void {
     if (window.getKey(.escape) == .press) {
         window.setShouldClose(true);
     }
+    const camera_speed = camera.speed * state.delta_time;
     if (window.getKey(.w) == .press) {
-        camera.pos += zm.splat(zm.Vec, camera.speed) * camera.front;
+        camera.pos += zm.splat(zm.Vec, camera_speed) * camera.front;
     }
     if (window.getKey(.s) == .press) {
-        camera.pos -= zm.splat(zm.Vec, camera.speed) * camera.front;
+        camera.pos -= zm.splat(zm.Vec, camera_speed) * camera.front;
     }
     if (window.getKey(.a) == .press) {
-        camera.pos -= zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera.speed);
+        camera.pos -= zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera_speed);
     }
     if (window.getKey(.d) == .press) {
-        camera.pos += zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera.speed);
+        camera.pos += zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera_speed);
     }
 }
