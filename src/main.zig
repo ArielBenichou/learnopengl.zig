@@ -1,16 +1,18 @@
-const builtin = @import("builtin");
 const std = @import("std");
+const builtin = @import("builtin");
+
 const glfw = @import("zglfw");
-const zopengl = @import("zopengl");
-const zstbi = @import("zstbi");
 const zgui = @import("zgui");
 const zm = @import("zmath");
+const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
+const zstbi = @import("zstbi");
+
+const IndexBuffer = @import("IndexBuffer.zig").IndexBuffer;
 const Shader = @import("Shader.zig").Shader;
+const Texture2D = @import("Texture2D.zig").Texture2D;
 const VertexArray = @import("VertexArray.zig").VertexArray;
 const VertexBuffer = @import("VertexBuffer.zig").VertexBuffer;
-const IndexBuffer = @import("IndexBuffer.zig").IndexBuffer;
-const Texture2D = @import("Texture2D.zig").Texture2D;
 
 pub fn main() !void {
     // glfw: init & config
@@ -43,10 +45,14 @@ pub fn main() !void {
         std.process.exit(1);
     };
     defer window.destroy();
-    window.setSizeLimits(400, 400, -1, -1);
 
     glfw.makeContextCurrent(window);
     _ = window.setFramebufferSizeCallback(framebufferSizeCallback);
+    _ = window.setCursorPosCallback(mouseCallback);
+    _ = window.setScrollCallback(scrollCallback);
+
+    window.setSizeLimits(400, 400, -1, -1);
+    try window.setInputMode(.cursor, .disabled);
 
     // OpenGL: load profile
     try zopengl.loadCoreProfile(
@@ -235,7 +241,7 @@ pub fn main() !void {
             const projM = x: {
                 const window_size = window.getSize();
                 const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
-                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(45), fov, 0.1, 100.0);
+                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(camera.fov), fov, 0.1, 100.0);
                 break :x projM;
             };
             zm.storeMat(&projection, projM);
@@ -261,24 +267,24 @@ pub fn main() !void {
             }
         }
 
-        { // zgui
-            const framebuffer_size = window.getFramebufferSize();
-
-            zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
-
-            // Set the starting window position and size to custom values
-            zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
-            zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
-
-            if (zgui.begin("My window", .{})) {
-                if (zgui.button("Press me!", .{ .w = 200.0 })) {
-                    std.debug.print("Button pressed\n", .{});
-                }
-            }
-            zgui.end();
-
-            zgui.backend.draw();
-        }
+        // { // zgui
+        //     const framebuffer_size = window.getFramebufferSize();
+        //
+        //     zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
+        //
+        //     // Set the starting window position and size to custom values
+        //     zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
+        //     zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
+        //
+        //     if (zgui.begin("My window", .{})) {
+        //         if (zgui.button("Press me!", .{ .w = 200.0 })) {
+        //             std.debug.print("Button pressed\n", .{});
+        //         }
+        //     }
+        //     zgui.end();
+        //
+        //     zgui.backend.draw();
+        // }
 
         window.swapBuffers();
     }
@@ -290,24 +296,31 @@ const WindowSize = struct {
 };
 
 const Camera = struct {
-    pos: zm.Vec,
-    front: zm.Vec,
-    up: zm.Vec,
-    speed: f32,
+    pos: zm.Vec = zm.loadArr3(.{ 0, 0, 3 }),
+    front: zm.Vec = zm.loadArr3(.{ 0, 0, -1 }),
+    up: zm.Vec = zm.loadArr3(.{ 0, 1, 0 }),
+
+    fov: f32 = 45,
+    speed: f32 = 2.5,
+
+    yaw: f32 = -90,
+    pitch: f32 = 0,
 };
-var camera = Camera{
-    .pos = zm.loadArr3(.{ 0, 0, 3 }),
-    .front = zm.loadArr3(.{ 0, 0, -1 }),
-    .up = zm.loadArr3(.{ 0, 1, 0 }),
-    .speed = 2.5,
-};
+var camera = Camera{};
 
 const State = struct {
     delta_time: f32 = 0,
     last_frame: f32 = 0,
+    mouse: struct {
+        did_init: bool = false,
+        last_x: f32 = 400,
+        last_y: f32 = 400,
+    },
 };
 
-var state = State{};
+var state = State{
+    .mouse = .{},
+};
 
 fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callconv(.c) void {
     _ = window;
@@ -317,6 +330,48 @@ fn framebufferSizeCallback(window: *glfw.Window, width: i32, height: i32) callco
         width,
         height,
     );
+}
+
+fn mouseCallback(window: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
+    _ = window;
+    const pos_x: f32 = @floatCast(xpos);
+    const pos_y: f32 = @floatCast(ypos);
+
+    if (state.mouse.did_init == false) {
+        state.mouse.last_x = pos_x;
+        state.mouse.last_y = pos_y;
+        state.mouse.did_init = true;
+    }
+
+    var x_offset = pos_x - state.mouse.last_x;
+    var y_offset = state.mouse.last_y - pos_y;
+    state.mouse.last_x = pos_x;
+    state.mouse.last_y = pos_y;
+
+    const sensitivity = 0.1;
+    x_offset *= sensitivity;
+    y_offset *= sensitivity;
+
+    camera.yaw += x_offset;
+    camera.pitch += y_offset;
+    camera.pitch = std.math.clamp(camera.pitch, -89, 89);
+
+    camera.front = zm.normalize3(
+        zm.f32x4(
+            @cos(std.math.degreesToRadians(camera.yaw)) * @cos(std.math.degreesToRadians(camera.pitch)),
+            @sin(std.math.degreesToRadians(camera.pitch)),
+            @sin(std.math.degreesToRadians(camera.yaw)) * @cos(std.math.degreesToRadians(camera.pitch)),
+            0,
+        ),
+    );
+}
+
+fn scrollCallback(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
+    _ = xoffset;
+    _ = window;
+
+    camera.fov -= @floatCast(yoffset);
+    camera.fov = std.math.clamp(camera.fov, 1, 45);
 }
 
 fn processInput(window: *glfw.Window) callconv(.c) void {
