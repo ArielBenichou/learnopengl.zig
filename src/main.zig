@@ -8,6 +8,7 @@ const zopengl = @import("zopengl");
 const gl = zopengl.bindings;
 const zstbi = @import("zstbi");
 
+const Camera = @import("Camera.zig").Camera;
 const IndexBuffer = @import("IndexBuffer.zig").IndexBuffer;
 const Shader = @import("Shader.zig").Shader;
 const Texture2D = @import("Texture2D.zig").Texture2D;
@@ -52,7 +53,7 @@ pub fn main() !void {
     _ = window.setScrollCallback(scrollCallback);
 
     window.setSizeLimits(400, 400, -1, -1);
-    try window.setInputMode(.cursor, .disabled);
+    try window.setInputMode(.cursor, .normal);
 
     // OpenGL: load profile
     try zopengl.loadCoreProfile(
@@ -230,18 +231,14 @@ pub fn main() !void {
             face_tex.bind();
             rect_vao.bind();
 
-            const viewM = zm.lookAtRh(
-                camera.pos,
-                camera.pos + camera.front,
-                camera.up,
-            );
+            const viewM = state.camera.getViewMatrix();
             zm.storeMat(&view, viewM);
             shader.setMat("view", view);
 
             const projM = x: {
                 const window_size = window.getSize();
                 const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
-                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(camera.fov), fov, 0.1, 100.0);
+                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(state.camera.zoom), fov, 0.1, 100.0);
                 break :x projM;
             };
             zm.storeMat(&projection, projM);
@@ -267,24 +264,25 @@ pub fn main() !void {
             }
         }
 
-        // { // zgui
-        //     const framebuffer_size = window.getFramebufferSize();
-        //
-        //     zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
-        //
-        //     // Set the starting window position and size to custom values
-        //     zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
-        //     zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
-        //
-        //     if (zgui.begin("My window", .{})) {
-        //         if (zgui.button("Press me!", .{ .w = 200.0 })) {
-        //             std.debug.print("Button pressed\n", .{});
-        //         }
-        //     }
-        //     zgui.end();
-        //
-        //     zgui.backend.draw();
-        // }
+        { // zgui
+            const framebuffer_size = window.getFramebufferSize();
+
+            zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
+
+            // Set the starting window position and size to custom values
+            zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
+            zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
+
+            if (zgui.begin("My window", .{})) {
+                if (zgui.button("Press me!", .{ .w = 200.0 })) {
+                    std.debug.print("Button pressed\n", .{});
+                }
+                zgui.labelText("Camera", "({})", .{state.camera.position});
+            }
+            zgui.end();
+
+            zgui.backend.draw();
+        }
 
         window.swapBuffers();
     }
@@ -295,19 +293,6 @@ const WindowSize = struct {
     pub const height: u32 = 600;
 };
 
-const Camera = struct {
-    pos: zm.Vec = zm.loadArr3(.{ 0, 0, 3 }),
-    front: zm.Vec = zm.loadArr3(.{ 0, 0, -1 }),
-    up: zm.Vec = zm.loadArr3(.{ 0, 1, 0 }),
-
-    fov: f32 = 45,
-    speed: f32 = 2.5,
-
-    yaw: f32 = -90,
-    pitch: f32 = 0,
-};
-var camera = Camera{};
-
 const State = struct {
     delta_time: f32 = 0,
     last_frame: f32 = 0,
@@ -316,6 +301,7 @@ const State = struct {
         last_x: f32 = 400,
         last_y: f32 = 400,
     },
+    camera: Camera = Camera.initDefault(),
 };
 
 var state = State{
@@ -343,52 +329,35 @@ fn mouseCallback(window: *glfw.Window, xpos: f64, ypos: f64) callconv(.c) void {
         state.mouse.did_init = true;
     }
 
-    var x_offset = pos_x - state.mouse.last_x;
-    var y_offset = state.mouse.last_y - pos_y;
+    const offset_x = pos_x - state.mouse.last_x;
+    const offset_y = state.mouse.last_y - pos_y;
     state.mouse.last_x = pos_x;
     state.mouse.last_y = pos_y;
 
-    const sensitivity = 0.1;
-    x_offset *= sensitivity;
-    y_offset *= sensitivity;
-
-    camera.yaw += x_offset;
-    camera.pitch += y_offset;
-    camera.pitch = std.math.clamp(camera.pitch, -89, 89);
-
-    camera.front = zm.normalize3(
-        zm.f32x4(
-            @cos(std.math.degreesToRadians(camera.yaw)) * @cos(std.math.degreesToRadians(camera.pitch)),
-            @sin(std.math.degreesToRadians(camera.pitch)),
-            @sin(std.math.degreesToRadians(camera.yaw)) * @cos(std.math.degreesToRadians(camera.pitch)),
-            0,
-        ),
-    );
+    state.camera.processMouseMovement(offset_x, offset_y, true);
 }
 
 fn scrollCallback(window: *glfw.Window, xoffset: f64, yoffset: f64) callconv(.c) void {
     _ = xoffset;
     _ = window;
 
-    camera.fov -= @floatCast(yoffset);
-    camera.fov = std.math.clamp(camera.fov, 1, 45);
+    state.camera.processMouseScroll(@floatCast(yoffset));
 }
 
 fn processInput(window: *glfw.Window) callconv(.c) void {
     if (window.getKey(.escape) == .press) {
         window.setShouldClose(true);
     }
-    const camera_speed = camera.speed * state.delta_time;
     if (window.getKey(.w) == .press) {
-        camera.pos += zm.splat(zm.Vec, camera_speed) * camera.front;
+        state.camera.processKeyboard(.Forward, state.delta_time);
     }
     if (window.getKey(.s) == .press) {
-        camera.pos -= zm.splat(zm.Vec, camera_speed) * camera.front;
+        state.camera.processKeyboard(.Backward, state.delta_time);
     }
     if (window.getKey(.a) == .press) {
-        camera.pos -= zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera_speed);
+        state.camera.processKeyboard(.Left, state.delta_time);
     }
     if (window.getKey(.d) == .press) {
-        camera.pos += zm.normalize3(zm.cross3(camera.front, camera.up)) * zm.splat(zm.Vec, camera_speed);
+        state.camera.processKeyboard(.Right, state.delta_time);
     }
 }
