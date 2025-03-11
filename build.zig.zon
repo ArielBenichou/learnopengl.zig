@@ -25,8 +25,8 @@
             .hash = "zmath-0.11.0-dev-AAAAAIk0AwDBq30eSRBvWcattABL79uVUlpyBWNkpmN1",
         },
         .zgui = .{
-            .url = "https://github.com/zig-gamedev/zgui/archive/refs/heads/main.tar.gz",
-            .hash = "zgui-0.6.0-dev--L6sZCCGaACkWlRBJOh9dEJ4fjKp0HenyS8__Bzkvl6q",
+            .url = "https://github.com/ArielBenichou/zgui/archive/refs/heads/feature/add-fns-for-viewport-enable.tar.gz",
+            .hash = "zgui-0.6.0-dev--L6sZOKHaAAOm8AcMfPrQ_qR_sKT-ACvNqpsZDYbojz_",
         },
     },
     .paths = .{

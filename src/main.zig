@@ -74,15 +74,10 @@ pub fn main() !void {
     zgui.init(allocator);
     defer zgui.deinit();
 
-    // TODO: wait for zgui to resolve error
-    // Configure ImGui with multi-viewport support before backend initialization
-    // zgui.io.setConfigFlags(.{
-    //     .viewport_enable = true,
-    //     .dock_enable = true,
-    // });
-    // io.config_view_ports_no_decoration = false; // Enable window decorations
-    // io.config_view_ports_no_task_bar_icon = true; // Don't show separate taskbar icons
-    // io.config_view_ports_no_auto_merge = true; // Don't auto-merge windows back
+    zgui.io.setConfigFlags(.{
+        .viewport_enable = true,
+        .dock_enable = true,
+    });
 
     zgui.backend.init(window);
     defer zgui.backend.deinit();
@@ -293,6 +288,13 @@ pub fn main() !void {
             renderCameraControlWindow();
 
             zgui.backend.draw();
+
+            { // Enable Multi-Viewports
+                const ctx = glfw.getCurrentContext();
+                zgui.updatePlatformWindows();
+                zgui.renderPlatformWindowsDefault();
+                glfw.makeContextCurrent(ctx);
+            }
         }
 
         window.swapBuffers();
