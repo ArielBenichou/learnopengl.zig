@@ -48,7 +48,6 @@ pub const Camera = struct {
 
     pub fn processKeyboard(self: *Self, direction: CameraMovement, delta_time: f32) void {
         const velocity = zm.splat(zm.Vec, self.movement_speed * delta_time);
-        std.log.info("velocity {}", .{velocity});
         switch (direction) {
             .Forward => {
                 self.position += self.front * velocity;
@@ -80,7 +79,7 @@ pub const Camera = struct {
         self.zoom = std.math.clamp(self.zoom, 1, 45);
     }
 
-    fn updateCameraVectors(self: *Self) void {
+    pub fn updateCameraVectors(self: *Self) void {
         self.front = zm.normalize3(
             zm.f32x4(
                 @cos(std.math.degreesToRadians(self.yaw)) * @cos(std.math.degreesToRadians(self.pitch)),

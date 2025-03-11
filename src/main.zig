@@ -74,6 +74,16 @@ pub fn main() !void {
     zgui.init(allocator);
     defer zgui.deinit();
 
+    // TODO: wait for zgui to resolve error
+    // Configure ImGui with multi-viewport support before backend initialization
+    // zgui.io.setConfigFlags(.{
+    //     .viewport_enable = true,
+    //     .dock_enable = true,
+    // });
+    // io.config_view_ports_no_decoration = false; // Enable window decorations
+    // io.config_view_ports_no_task_bar_icon = true; // Don't show separate taskbar icons
+    // io.config_view_ports_no_auto_merge = true; // Don't auto-merge windows back
+
     zgui.backend.init(window);
     defer zgui.backend.deinit();
 
@@ -277,9 +287,10 @@ pub fn main() !void {
                 if (zgui.button("Press me!", .{ .w = 200.0 })) {
                     std.debug.print("Button pressed\n", .{});
                 }
-                zgui.labelText("Camera", "({})", .{state.camera.position});
             }
             zgui.end();
+
+            renderCameraControlWindow();
 
             zgui.backend.draw();
         }
@@ -360,4 +371,141 @@ fn processInput(window: *glfw.Window) callconv(.c) void {
     if (window.getKey(.d) == .press) {
         state.camera.processKeyboard(.Right, state.delta_time);
     }
+}
+
+// UI Components
+fn renderCameraControlWindow() void {
+    // Set the starting window position and size
+    zgui.setNextWindowPos(.{
+        .x = 20.0,
+        .y = 200.0,
+        .cond = .first_use_ever,
+    });
+    zgui.setNextWindowSize(.{
+        .w = 350.0,
+        .h = 400.0,
+        .cond = .first_use_ever,
+    });
+
+    if (zgui.begin("Camera Controls", .{})) {
+        zgui.spacing();
+
+        // Camera Position
+        zgui.separatorText("Position");
+
+        var position = zm.vecToArr3(state.camera.position);
+
+        if (zgui.dragFloat3("Position", .{
+            .v = &position,
+            .speed = 0.1,
+        })) {
+            state.camera.position = zm.f32x4(
+                position[0],
+                position[1],
+                position[2],
+                0,
+            );
+            state.camera.updateCameraVectors();
+        }
+
+        if (zgui.button("Reset Position", .{})) {
+            state.camera.position = zm.loadArr3(.{ 0, 0, 3 });
+            state.camera.updateCameraVectors();
+        }
+
+        zgui.spacing();
+        zgui.separatorText("Orientation");
+
+        // Yaw and Pitch
+        var yaw = state.camera.yaw;
+        if (zgui.sliderFloat("Yaw", .{
+            .v = &yaw,
+            .min = -180,
+            .max = 180,
+        })) {
+            state.camera.yaw = yaw;
+            state.camera.updateCameraVectors();
+        }
+
+        var pitch = state.camera.pitch;
+        if (zgui.sliderFloat("Pitch", .{
+            .v = &pitch,
+            .min = -89,
+            .max = 89,
+        })) {
+            state.camera.pitch = pitch;
+            state.camera.updateCameraVectors();
+        }
+
+        if (zgui.button("Reset Orientation", .{})) {
+            state.camera.yaw = -90;
+            state.camera.pitch = 0;
+            state.camera.updateCameraVectors();
+        }
+
+        zgui.spacing();
+        zgui.separatorText("Camera Settings");
+
+        // Movement Speed
+        var movement_speed = state.camera.movement_speed;
+        if (zgui.sliderFloat("Movement Speed", .{
+            .v = &movement_speed,
+            .min = 0.1,
+            .max = 10.0,
+        })) {
+            state.camera.movement_speed = movement_speed;
+        }
+
+        // Mouse Sensitivity
+        var mouse_sensitivity = state.camera.mouse_sensitivity;
+        if (zgui.sliderFloat("Mouse Sensitivity", .{
+            .v = &mouse_sensitivity,
+            .min = 0.01,
+            .max = 1.0,
+        })) {
+            state.camera.mouse_sensitivity = mouse_sensitivity;
+        }
+
+        // Zoom/FOV
+        var zoom = state.camera.zoom;
+        if (zgui.sliderFloat("FOV (Zoom)", .{
+            .v = &zoom,
+            .min = 1,
+            .max = 45,
+        })) {
+            state.camera.zoom = zoom;
+        }
+
+        if (zgui.button("Reset Camera Settings", .{})) {
+            state.camera.movement_speed = 2.5;
+            state.camera.mouse_sensitivity = 0.1;
+            state.camera.zoom = 45;
+        }
+
+        zgui.spacing();
+        zgui.separatorText("Camera Info");
+
+        // Camera vectors display
+        const front = zm.vecToArr3(state.camera.front);
+        zgui.labelText(
+            "Front",
+            "({d:.2},{d:.2},{d:.2})",
+            .{ front[0], front[1], front[2] },
+        );
+
+        const up = zm.vecToArr3(state.camera.up);
+        zgui.labelText(
+            "Up",
+            "({d:.2},{d:.2},{d:.2})",
+            .{ up[0], up[1], up[2] },
+        );
+
+        const right = zm.vecToArr3(state.camera.right);
+        zgui.labelText(
+            "Right",
+            "({d:.2},{d:.2},{d:.2})",
+            .{ right[0], right[1], right[2] },
+        );
+    }
+    zgui.end();
 }
