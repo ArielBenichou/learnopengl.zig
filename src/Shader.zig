@@ -85,12 +85,11 @@ pub const Shader = struct {
         );
     }
 
-    pub fn setVec3(self: Self, name: []const u8, v0: f32, v1: f32, v2: f32) void {
-        gl.uniform3f(
+    pub fn setVec3(self: Self, name: []const u8, value: [3]f32) void {
+        gl.uniform3fv(
             gl.getUniformLocation(self.id, name.ptr),
-            v0,
-            v1,
-            v2,
+            1,
+            &value,
         );
     }
 
