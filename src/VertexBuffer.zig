@@ -6,8 +6,6 @@ pub const VertexBuffer = struct {
 
     id: gl.Uint,
     stride: gl.Sizei,
-    attributes_count: gl.Uint = 0,
-    attributes_offset: usize = 0,
 
     pub const DrawMode = enum(comptime_int) {
         StaticDraw = gl.STATIC_DRAW,
@@ -36,31 +34,12 @@ pub const VertexBuffer = struct {
         gl.deleteBuffers(1, &self.id);
     }
 
-    pub fn addAttribute(
-        self: *Self,
-        size: gl.Int,
-        attrib_type: gl.Enum,
-        normalized: gl.Boolean,
-    ) void {
-        gl.vertexAttribPointer(
-            self.attributes_count,
-            size,
-            attrib_type,
-            normalized,
-            self.stride * @sizeOf(gl.Float),
-            @ptrFromInt(self.attributes_offset * @sizeOf(gl.Float)),
-        );
-        gl.enableVertexAttribArray(self.attributes_count);
-
-        self.attributes_offset += @intCast(size);
-        self.attributes_count += 1;
-    }
-
     pub fn bind(self: Self) void {
         gl.bindBuffer(gl.ARRAY_BUFFER, self.id);
     }
 
-    pub fn unbind() void {
+    pub fn unbind(self: Self) void {
+        _ = self;
         gl.bindBuffer(gl.ARRAY_BUFFER, 0);
     }
 };

@@ -5,7 +5,7 @@ const zm = @import("zmath");
 pub const Camera = struct {
     const Self = @This();
 
-    position: zm.Vec = zm.loadArr3(.{ 0, 0, 3 }),
+    position: zm.Vec = zm.loadArr3(.{ 0, 0, 7 }),
     front: zm.Vec = zm.loadArr3(.{ 0, 0, -1 }),
     world_up: zm.Vec = zm.loadArr3(.{ 0, 1, 0 }),
     up: zm.Vec = undefined,

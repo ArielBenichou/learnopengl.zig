@@ -85,6 +85,15 @@ pub const Shader = struct {
         );
     }
 
+    pub fn setVec3(self: Self, name: []const u8, v0: f32, v1: f32, v2: f32) void {
+        gl.uniform3f(
+            gl.getUniformLocation(self.id, name.ptr),
+            v0,
+            v1,
+            v2,
+        );
+    }
+
     fn createShader(source: [:0]const u8, shader_type: gl.Enum, name: []const u8) !gl.Uint {
         const shader = gl.createShader(shader_type);
         gl.shaderSource(

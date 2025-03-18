@@ -88,57 +88,64 @@ pub fn main() !void {
     defer zstbi.deinit();
 
     // shader: create
-    const shader = try Shader.init(
+    const entity_shader = try Shader.init(
+        arena,
+        "./src/shaders/default.vert.glsl",
+        "./src/shaders/entity.frag.glsl",
+    );
+    defer entity_shader.deinit();
+
+    const light_shader = try Shader.init(
         arena,
         "./src/shaders/default.vert.glsl",
         "./src/shaders/default.frag.glsl",
     );
-    defer shader.deinit();
+    defer light_shader.deinit();
 
     // zig fmt: off
     const vertices = [_]gl.Float {
-        // positions       // tex coords
-        -0.5, -0.5, -0.5,  0.0, 0.0,
-         0.5, -0.5, -0.5,  1.0, 0.0,
-         0.5,  0.5, -0.5,  1.0, 1.0,
-         0.5,  0.5, -0.5,  1.0, 1.0,
-        -0.5,  0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 0.0,
+        // positions
+        -0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,
+         0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,
+        -0.5,  0.5, -0.5,
+        -0.5, -0.5, -0.5,
 
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-         0.5, -0.5,  0.5,  1.0, 0.0,
-         0.5,  0.5,  0.5,  1.0, 1.0,
-         0.5,  0.5,  0.5,  1.0, 1.0,
-        -0.5,  0.5,  0.5,  0.0, 1.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,
+         0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,
+        -0.5,  0.5,  0.5,
+        -0.5, -0.5,  0.5,
 
-        -0.5,  0.5,  0.5,  1.0, 0.0,
-        -0.5,  0.5, -0.5,  1.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-        -0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5,  0.5,
+        -0.5,  0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        -0.5, -0.5, -0.5,
+        -0.5, -0.5,  0.5,
+        -0.5,  0.5,  0.5,
 
-         0.5,  0.5,  0.5,  1.0, 0.0,
-         0.5,  0.5, -0.5,  1.0, 1.0,
-         0.5, -0.5, -0.5,  0.0, 1.0,
-         0.5, -0.5, -0.5,  0.0, 1.0,
-         0.5, -0.5,  0.5,  0.0, 0.0,
-         0.5,  0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5,  0.5,
+         0.5,  0.5, -0.5,
+         0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,
+         0.5, -0.5,  0.5,
+         0.5,  0.5,  0.5,
 
-        -0.5, -0.5, -0.5,  0.0, 1.0,
-         0.5, -0.5, -0.5,  1.0, 1.0,
-         0.5, -0.5,  0.5,  1.0, 0.0,
-         0.5, -0.5,  0.5,  1.0, 0.0,
-        -0.5, -0.5,  0.5,  0.0, 0.0,
-        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,
+         0.5, -0.5, -0.5,
+         0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,
+        -0.5, -0.5,  0.5,
+        -0.5, -0.5, -0.5,
 
-        -0.5,  0.5, -0.5,  0.0, 1.0,
-         0.5,  0.5, -0.5,  1.0, 1.0,
-         0.5,  0.5,  0.5,  1.0, 0.0,
-         0.5,  0.5,  0.5,  1.0, 0.0,
-        -0.5,  0.5,  0.5,  0.0, 0.0,
-        -0.5,  0.5, -0.5,  0.0, 1.0
+        -0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,
+         0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,
+        -0.5,  0.5,  0.5,
+        -0.5,  0.5, -0.5,
     };
 
     const cube_positions = [_][3]f32{
@@ -154,55 +161,28 @@ pub fn main() !void {
         .{ -1.3,  1.0, -1.5  },
     };
     // zig fmt: on
+    const light_position = [_]f32{ 1.2, 1, 2 };
 
-    const rect_vao = VertexArray.init();
+    // THE CUBES
+    var rect_vao = VertexArray.init();
     defer rect_vao.deinit();
     rect_vao.bind();
-
-    var rect_vbo = VertexBuffer.init(&vertices, 5, .StaticDraw);
+    var rect_vbo = VertexBuffer.init(&vertices, 3, .StaticDraw);
     defer rect_vbo.deinit();
-    rect_vbo.bind();
-
     // pos attrib
-    rect_vbo.addAttribute(3, gl.FLOAT, gl.FALSE);
-    // texcoord attrib
-    rect_vbo.addAttribute(2, gl.FLOAT, gl.FALSE);
+    rect_vao.addAttribute(rect_vbo, 3, gl.FLOAT, gl.FALSE);
 
-    const crate_tex = tex: {
-        var image = try zstbi.Image.loadFromFile(
-            "assets/container.jpg",
-            0,
-        );
-        defer image.deinit();
-        break :tex Texture2D.init(
-            image.data,
-            image.width,
-            image.height,
-            .RGB,
-        );
-    };
-    defer crate_tex.deinit();
-
-    const face_tex = tex: {
-        var image = try zstbi.Image.loadFromFile(
-            "assets/awesomeface.png",
-            0,
-        );
-        defer image.deinit();
-        break :tex Texture2D.init(
-            image.data,
-            image.width,
-            image.height,
-            .RGBA,
-        );
-    };
-    defer face_tex.deinit();
+    // THE LIGHT
+    var light_vao = VertexArray.init();
+    defer light_vao.deinit();
+    // pos attrib
+    light_vao.addAttribute(rect_vbo, 3, gl.FLOAT, gl.FALSE);
 
     gl.enable(gl.DEPTH_TEST);
 
-    shader.use();
-    shader.setInt("base_tex", 0);
-    shader.setInt("overlay_tex", 1);
+    entity_shader.use();
+    entity_shader.setVec3("objectColor", 1, 0.5, 0.31);
+    entity_shader.setVec3("lightColor", 1, 1, 1);
 
     var model: [16]f32 = undefined;
 
@@ -225,20 +205,18 @@ pub fn main() !void {
         glfw.pollEvents();
 
         { // Clear
-            gl.clearColor(0.2, 0.3, 0.3, 1.0);
+            gl.clearColor(0.1, 0.1, 0.1, 1.0);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
         }
 
         { // Draw Cubes
-            gl.activeTexture(gl.TEXTURE0);
-            crate_tex.bind();
-            gl.activeTexture(gl.TEXTURE1);
-            face_tex.bind();
+            entity_shader.use();
             rect_vao.bind();
+            defer rect_vao.unbind();
 
             const viewM = state.camera.getViewMatrix();
             zm.storeMat(&view, viewM);
-            shader.setMat("view", view);
+            entity_shader.setMat("view", view);
 
             const projM = x: {
                 const window_size = window.getSize();
@@ -247,7 +225,7 @@ pub fn main() !void {
                 break :x projM;
             };
             zm.storeMat(&projection, projM);
-            shader.setMat("projection", projection);
+            entity_shader.setMat("projection", projection);
 
             for (cube_positions, 0..) |cube_position, i| {
                 const cube_trans = zm.translation(cube_position[0], cube_position[1], cube_position[2]);
@@ -263,27 +241,47 @@ pub fn main() !void {
                     cube_trans,
                 );
                 zm.storeMat(&model, modelM);
-                shader.setMat("model", model);
+                entity_shader.setMat("model", model);
 
                 gl.drawArrays(gl.TRIANGLES, 0, 36);
             }
+        }
+
+        { // Draw Light
+            light_shader.use();
+            light_vao.bind();
+            defer light_vao.unbind();
+
+            const viewM = state.camera.getViewMatrix();
+            zm.storeMat(&view, viewM);
+            light_shader.setMat("view", view);
+
+            const projM = x: {
+                const window_size = window.getSize();
+                const fov = @as(f32, @floatFromInt(window_size[0])) / @as(f32, @floatFromInt(window_size[1]));
+                const projM = zm.perspectiveFovRhGl(std.math.degreesToRadians(state.camera.zoom), fov, 0.1, 100.0);
+                break :x projM;
+            };
+            zm.storeMat(&projection, projM);
+            light_shader.setMat("projection", projection);
+
+            const light_trans = zm.translation(light_position[0], light_position[1], light_position[2]);
+            const light_scale = zm.scalingV(zm.splat(zm.Vec, 0.2));
+
+            const modelM = zm.mul(
+                light_scale,
+                light_trans,
+            );
+            zm.storeMat(&model, modelM);
+            light_shader.setMat("model", model);
+
+            gl.drawArrays(gl.TRIANGLES, 0, 36);
         }
 
         { // zgui
             const framebuffer_size = window.getFramebufferSize();
 
             zgui.backend.newFrame(@intCast(framebuffer_size[0]), @intCast(framebuffer_size[1]));
-
-            // Set the starting window position and size to custom values
-            zgui.setNextWindowPos(.{ .x = 20.0, .y = 20.0, .cond = .first_use_ever });
-            zgui.setNextWindowSize(.{ .w = -1.0, .h = -1.0, .cond = .first_use_ever });
-
-            if (zgui.begin("My window", .{})) {
-                if (zgui.button("Press me!", .{ .w = 200.0 })) {
-                    std.debug.print("Button pressed\n", .{});
-                }
-            }
-            zgui.end();
 
             renderCameraControlWindow();
 
