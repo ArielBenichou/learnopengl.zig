@@ -1,28 +1,49 @@
 #version 330 core
 
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float shininess;
+};
+
+struct Light {
+    vec3 position;
+  
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+};
+
 in vec3 frag_pos;
 in vec3 normal;
 
-uniform vec3 object_color;
-uniform vec3 light_color;
-uniform vec3 light_pos;
+uniform Light light;  
+uniform Material material;
+
+uniform vec3 view_pos;
 
 out vec4 frag_color;
 
 void main() {
-  // diffuse
   vec3 norm = normalize(normal);
-  vec3 light_dir = light_pos - frag_pos;
-  vec3 light_dir_norm = normalize(light_dir);
-  float distance_strength = 2 / length(light_dir);
-  float diff = max(dot(norm, light_dir_norm), 0.0);
-  // remove distance_strength for flast "sun" light, else thi is "spot" lighting
-  vec3 diffuse = diff * light_color * distance_strength;
+  vec3 view_dir = normalize(view_pos - frag_pos);
+  vec3 light_dir = normalize(light.position - frag_pos);
 
-  // ambient
-  float ambient_strength = 0.1;
-  vec3 ambient = ambient_strength * light_color;
+   // ambient
+  vec3 ambient = light.ambient * material.ambient;
 
-  vec3 result = (ambient + diffuse) * object_color;
+  // diffuse
+  float diff = max(dot(norm, light_dir), 0.0);
+  vec3 diffuse = light.diffuse * (diff * material.diffuse);
+
+  // specular
+  vec3 reflect_dir = reflect(-light_dir, norm);
+  float spec = pow(max(dot(view_dir, reflect_dir), 0.0), material.shininess);
+  vec3 specular = light.specular * (spec * material.specular);
+
+
+  vec3 result = ambient + diffuse + specular;
   frag_color = vec4(result, 1);
 }
+

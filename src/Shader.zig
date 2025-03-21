@@ -11,7 +11,7 @@ pub const Shader = struct {
         const vertex_source = try std.fs.cwd().readFileAlloc(
             allocator,
             vertex_path,
-            1024,
+            1024 * 2,
         );
         defer allocator.free(vertex_source);
         const vertex_source_z = try allocator.dupeZ(u8, vertex_source);
@@ -20,7 +20,7 @@ pub const Shader = struct {
         const fragment_source = try std.fs.cwd().readFileAlloc(
             allocator,
             fragment_path,
-            1024,
+            1024 * 2,
         );
         defer allocator.free(fragment_source);
         const fragment_source_z = try allocator.dupeZ(u8, fragment_source);

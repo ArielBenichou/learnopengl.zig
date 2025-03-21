@@ -184,11 +184,6 @@ pub fn main() !void {
 
     gl.enable(gl.DEPTH_TEST);
 
-    entity_shader.use();
-    entity_shader.setVec3("object_color", .{ 1, 0.5, 0.31 });
-    entity_shader.setVec3("light_color", .{ 1, 1, 1 });
-    entity_shader.setVec3("light_pos", light_position);
-
     var model: [16]f32 = undefined;
 
     var view: [16]f32 = undefined;
@@ -218,6 +213,24 @@ pub fn main() !void {
             entity_shader.use();
             rect_vao.bind();
             defer rect_vao.unbind();
+
+            const light_color = zm.loadArr3(.{
+                @sin(state.last_frame * 2),
+                @sin(state.last_frame * 0.7),
+                @sin(state.last_frame * 1.3),
+            });
+            const diffuse_color = light_color * zm.splat(zm.Vec, 0.5);
+            const ambient_color = diffuse_color * zm.splat(zm.Vec, 0.2);
+            entity_shader.setVec3("light.ambient", zm.vecToArr3(ambient_color));
+            entity_shader.setVec3("light.diffuse", zm.vecToArr3(diffuse_color)); // darken diffuse light a bit
+            entity_shader.setVec3("light.specular", .{ 1.0, 1.0, 1.0 });
+            entity_shader.setVec3("light.position", light_position);
+
+            entity_shader.setVec3("view_pos", zm.vecToArr3(state.camera.position));
+            entity_shader.setVec3("material.ambient", .{ 1.0, 0.5, 0.31 });
+            entity_shader.setVec3("material.diffuse", .{ 1.0, 0.5, 0.31 });
+            entity_shader.setVec3("material.specular", .{ 0.5, 0.5, 0.5 });
+            entity_shader.setFloat("material.shininess", 16);
 
             const viewM = state.camera.getViewMatrix();
             zm.storeMat(&view, viewM);
